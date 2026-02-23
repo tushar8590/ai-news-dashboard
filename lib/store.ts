@@ -9,13 +9,23 @@ let isInitialized = false;
 // Initialize from KV if possible
 async function initStore() {
     if (isInitialized) return;
+
+    const kvUrl = process.env.KV_URL || process.env.KV_REST_API_URL;
+    console.log('Initializing store. KV_URL present:', !!kvUrl);
+
     try {
-        if (process.env.KV_URL) {
+        if (kvUrl) {
+            console.log('Fetching articles from KV...');
             const cached = await kv.get<Article[]>('articles');
             if (cached) {
                 articlesCache = cached;
                 lastUpdated = await kv.get<string>('last_updated');
+                console.log(`Successfully loaded ${articlesCache.length} articles from KV. Last updated: ${lastUpdated}`);
+            } else {
+                console.log('No articles found in KV cache.');
             }
+        } else {
+            console.log('KV environment variables not found. Using in-memory storage.');
         }
         isInitialized = true;
     } catch (err) {
@@ -31,10 +41,14 @@ export async function getArticles(): Promise<Article[]> {
 export async function setArticles(articles: Article[]): Promise<void> {
     articlesCache = articles;
     lastUpdated = new Date().toISOString();
+
+    const kvUrl = process.env.KV_URL || process.env.KV_REST_API_URL;
     try {
-        if (process.env.KV_URL) {
+        if (kvUrl) {
+            console.log(`Saving ${articlesCache.length} articles to KV...`);
             await kv.set('articles', articlesCache);
             await kv.set('last_updated', lastUpdated);
+            console.log('Successfully saved to KV.');
         }
     } catch (err) {
         console.error('KV set error:', err);
@@ -45,15 +59,21 @@ export async function addArticles(newArticles: Article[]): Promise<void> {
     await initStore();
     const existingUrls = new Set(articlesCache.map((a) => a.url));
     const uniqueNew = newArticles.filter((a) => !existingUrls.has(a.url));
+
+    console.log(`Adding ${uniqueNew.length} new articles to existing ${articlesCache.length}.`);
+
     articlesCache = [...uniqueNew, ...articlesCache]
         .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
         .slice(0, 500); // Keep last 500 articles
     lastUpdated = new Date().toISOString();
 
+    const kvUrl = process.env.KV_URL || process.env.KV_REST_API_URL;
     try {
-        if (process.env.KV_URL) {
+        if (kvUrl) {
+            console.log(`Persisting updated cache (${articlesCache.length} total) to KV...`);
             await kv.set('articles', articlesCache);
             await kv.set('last_updated', lastUpdated);
+            console.log('Successfully persisted to KV.');
         }
     } catch (err) {
         console.error('KV add error:', err);

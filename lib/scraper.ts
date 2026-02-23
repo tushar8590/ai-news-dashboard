@@ -128,7 +128,11 @@ export async function scrapeAllSources(): Promise<Article[]> {
 
     for (const result of results) {
         if (result.status === 'fulfilled') {
-            allArticles.push(...result.value);
+            const sourceArticles = result.value;
+            console.log(`Scraped ${sourceArticles.length} articles from source.`);
+            allArticles.push(...sourceArticles);
+        } else {
+            console.error('Scraper source promise rejected:', result.reason);
         }
     }
 
