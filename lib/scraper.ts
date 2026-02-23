@@ -29,18 +29,24 @@ function generateId(url: string): string {
 }
 
 async function fetchRSSFeed(feed: RSSFeed): Promise<Article[]> {
+    console.log(`Attempting to fetch RSS from: ${feed.name} (${feed.url})`);
     try {
         const RSSParser = (await import('rss-parser')).default;
         const parser = new RSSParser({
-            timeout: 8000,
+            timeout: 10000,
             headers: {
-                'User-Agent': 'AI-News-Aggregator/1.0 (+https://github.com/ai-news)',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/rss+xml, application/xml, text/xml',
             },
         });
+
         const parsed = await parser.parseURL(feed.url);
         const articles: Article[] = [];
 
-        for (const item of parsed.items?.slice(0, 20) || []) {
+        const items = parsed.items || [];
+        console.log(`Source ${feed.name} returned ${items.length} items.`);
+
+        for (const item of items.slice(0, 20)) {
             if (!item.title || !item.link) continue;
 
             const description = item.contentSnippet || item.content || item.summary || '';
@@ -52,13 +58,19 @@ async function fetchRSSFeed(feed: RSSFeed): Promise<Article[]> {
 
             // Extract image from content or media
             let imageUrl: string | undefined;
-            const imgMatch = (item.content || '').match(/<img[^>]+src="([^"]+)"/);
+            const content = item.content || '';
+            const imgMatch = content.match(/<img[^>]+src="([^"]+)"/);
             if (imgMatch) imageUrl = imgMatch[1];
+
+            // Fallback for media:content if available (some feeds use this)
+            if (!imageUrl && (item as any).enclosure?.url) {
+                imageUrl = (item as any).enclosure.url;
+            }
 
             articles.push({
                 id: generateId(item.link),
                 title: item.title.trim(),
-                description: cleanDesc,
+                description: cleanDesc || item.title.trim(),
                 url: item.link,
                 imageUrl,
                 source: feed.name,
@@ -69,8 +81,8 @@ async function fetchRSSFeed(feed: RSSFeed): Promise<Article[]> {
         }
 
         return articles;
-    } catch (error) {
-        console.error(`Error fetching RSS from ${feed.name}:`, error);
+    } catch (error: any) {
+        console.error(`Error fetching RSS from ${feed.name}:`, error.message || error);
         return [];
     }
 }
