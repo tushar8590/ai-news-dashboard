@@ -8,12 +8,12 @@ export const maxDuration = 30;
 export async function GET() {
     try {
         const articles = await scrapeAllSources();
-        addArticles(articles);
+        await addArticles(articles);
 
         return NextResponse.json({
             success: true,
             articlesScraped: articles.length,
-            totalArticles: getArticles().length,
+            totalArticles: (await getArticles()).length,
             timestamp: new Date().toISOString(),
         });
     } catch (error) {

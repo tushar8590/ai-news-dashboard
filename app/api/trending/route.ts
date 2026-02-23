@@ -4,6 +4,6 @@ import { getTrendingKeywords } from '@/lib/store';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    const trending = getTrendingKeywords(20);
+    const trending = await getTrendingKeywords(20);
     return NextResponse.json({ trending });
 }

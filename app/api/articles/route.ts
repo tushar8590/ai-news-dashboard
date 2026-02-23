@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50);
 
-    let articles = getArticles();
+    let articles = await getArticles();
 
     // Filter by category
     if (category && category !== 'all') {
